@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Agenda de Estoque</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#f6f5f1;--card:#fff;--tx:#1d1d1b;--mut:#6b6a64;--bd:#dedcd4;--ac:#2f5d50;--acx:#fff;
+--s-pendente:#b7791f;--s-solicitado:#2b6cb0;--s-transferido:#6b46c1;--s-em-casa:#2f855a;--today:#e8f0ec}
+:root:not([data-theme="light"]){color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171716;--card:#222220;--tx:#eceae3;--mut:#9a988f;--bd:#3a3935;--ac:#6fb59f;--acx:#10201b;
+--s-pendente:#ecb04a;--s-solicitado:#6fa8e8;--s-transferido:#a98ae8;--s-em-casa:#68c38f;--today:#25302b}}
+:root[data-theme="dark"]{--bg:#171716;--card:#222220;--tx:#eceae3;--mut:#9a988f;--bd:#3a3935;--ac:#6fb59f;--acx:#10201b;
+--s-pendente:#ecb04a;--s-solicitado:#6fa8e8;--s-transferido:#a98ae8;--s-em-casa:#68c38f;--today:#25302b}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:14px 20px;border-bottom:1px solid var(--bd);background:var(--card)}
+h1{font-size:18px;margin:0 auto 0 0}
+button,select,input,textarea{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:6px 10px}
+button{cursor:pointer}button:hover{border-color:var(--ac)}
+.pri{background:var(--ac);color:var(--acx);border-color:var(--ac)}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 20px}
+.bar .t{font-weight:600;min-width:210px;text-align:center}
+.grid{display:grid;grid-template-columns:repeat(7,minmax(150px,1fr));gap:8px;padding:0 20px 24px;overflow-x:auto}
+.day{background:var(--card);border:1px solid var(--bd);border-radius:10px;min-height:130px;display:flex;flex-direction:column}
+.day.hoje{background:var(--today);border-color:var(--ac)}
+.dh{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid var(--bd)}
+.dh b{font-size:13px}.dh span{color:var(--mut);font-size:12px}
+.dh button{padding:0 8px;font-size:16px;line-height:24px}
+.list{padding:6px;display:flex;flex-direction:column;gap:6px;max-height:210px;overflow-y:auto}
+.wk{text-align:center;font-weight:600;font-size:12px;color:var(--mut);padding:4px}
+.day.fora{visibility:hidden;min-height:0}
+.p{border:1px solid var(--bd);border-left:4px solid var(--c);border-radius:6px;padding:6px 8px;background:var(--card);cursor:pointer}
+.p:hover{border-color:var(--c)}
+.p .c{font-weight:600}.p .r{color:var(--mut);font-size:12px}
+.chip{display:inline-block;font-size:11px;font-weight:600;color:var(--c);margin-top:2px}
+.st-pendente{--c:var(--s-pendente)}.st-solicitado{--c:var(--s-solicitado)}.st-transferido{--c:var(--s-transferido)}.st-em-casa{--c:var(--s-em-casa)}
+.leg{display:flex;gap:12px;margin-left:12px}.leg .chip{margin:0}
+.vazio{color:var(--mut);font-size:12px;text-align:center;padding:14px 4px}
+dialog{border:1px solid var(--bd);border-radius:12px;background:var(--card);color:var(--tx);padding:18px;width:min(440px,94vw)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+label{display:block;margin:10px 0 3px;font-size:12px;color:var(--mut)}
+dialog input,dialog textarea,dialog select{width:100%}
+.row{display:flex;gap:8px;margin-top:14px;justify-content:flex-end}
+.hist{margin:8px 0 0;padding:0;list-style:none;font-size:12px;color:var(--mut)}
+.hist li{padding:3px 0;border-top:1px dashed var(--bd)}
+[hidden]{display:none!important}
+#login input{width:100%}
+.ur{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px dashed var(--bd)}
+.ur small{color:var(--mut)}.ur select{width:auto}
+.msg{padding:30px 20px;text-align:center;color:var(--mut)}
+</style>
+</head>
+<body>
+<header>
+  <h1>📦 Agenda de Estoque</h1>
+  <input id="busca" placeholder="Buscar código ou referência" style="min-width:230px">
+  <select id="fil"><option value="">Todos os status</option><option value="pendente">Pendente</option><option value="solicitado">Solicitado</option><option value="transferido">Transferido</option><option value="em casa">Em casa</option></select>
+  <span id="quem" style="color:var(--mut);font-size:12px"></span>
+  <button id="btnUsers" hidden>Usuários</button><button id="sair" hidden>Sair</button>
+</header>
+<div class="bar" id="bar" hidden>
+  <button id="ant">◀</button><span class="t" id="titulo"></span><button id="prox">▶</button>
+  <button id="hoje">Hoje</button>
+  <span class="leg" id="leg"></span>
+  <button class="pri" id="novo" style="margin-left:auto">+ Nova solicitação</button>
+</div>
+<div id="msg" class="msg">Carregando…</div>
+<div id="login" class="msg" hidden>
+  <div style="max-width:320px;margin:0 auto;text-align:left">
+    <h3 id="lt" style="text-align:center;color:var(--tx)">Entrar</h3>
+    <label id="lNomeL" hidden>Nome</label><input id="lNome" hidden>
+    <label>E-mail</label><input id="lEmail" type="email" autocomplete="username">
+    <label>Senha</label><input id="lSenha" type="password" autocomplete="current-password">
+    <div id="lErr" style="color:#c53030;margin-top:8px"></div>
+    <div class="row"><button id="lAlt">Criar conta</button><button class="pri" id="lOk">Entrar</button></div>
+  </div>
+</div>
+<div class="grid" id="grid" hidden></div>
+
+<dialog id="dlgNovo">
+  <h3 style="margin:0">Nova solicitação</h3>
+  <label>Código interno</label><input id="fCod">
+  <label>Referência</label><input id="fRef">
+  <label>Quantidade</label><input id="fQtd" type="number" min="1" value="1">
+  <label>Dia</label><input id="fDia" type="date">
+  <label>Observação (opcional)</label><textarea id="fObs" rows="2"></textarea>
+  <div class="row"><button id="cancNovo">Cancelar</button><button class="pri" id="salvaNovo">Salvar</button></div>
+</dialog>
+<dialog id="dlgUsers"><h3 style="margin:0 0 8px">Usuários</h3><div id="usersList"></div><div class="row"><button id="fechaU">Fechar</button></div></dialog>
+<dialog id="dlgDet"><div id="det"></div></dialog>
+
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,createUserWithEmailAndPassword,signOut} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {getFirestore,collection,doc,addDoc,setDoc,updateDoc,deleteDoc,onSnapshot} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+// COLE AQUI os dados do seu projeto Firebase (veja o LEIA-ME.md)
+const firebaseConfig={apiKey:"AIzaSyA6D2urfxx5YCBXamT7uXLc-NSrS5R3ZxU",authDomain:"transf-ddd24.firebaseapp.com",projectId:"transf-ddd24",storageBucket:"transf-ddd24.firebasestorage.app",messagingSenderId:"343402959723",appId:"1:343402959723:web:2a1971167b0529149df22e"};
+const STATUS=["pendente","solicitado","transferido","em casa"];
+const slug=s=>s.replace(" ","-");
+const cap=s=>s?s.charAt(0).toUpperCase()+s.slice(1):s;
+const MES=["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+const MESL=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const $=id=>document.getElementById(id);
+const iso=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const parse=s=>{const[a,b,c]=s.split("-").map(Number);return new Date(a,b-1,c)};
+const DIAS=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+let ini=new Date(new Date().getFullYear(),new Date().getMonth(),1),pedidos=[],nomes={},db=null,meuId=null,gestor=false,col=null,usuarios=[];
+
+function semana(d){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-x.getDay());return x}
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const nome=id=>nomes[id]||"Alguém";
+const fmt=ms=>new Date(ms).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+
+
+function render(){
+  const q=$("busca").value.trim().toLowerCase(),f=$("fil").value;
+  $("titulo").textContent=MESL[ini.getMonth()]+" "+ini.getFullYear();
+  const hojeIso=iso(new Date());let h=DIAS.map(n=>`<div class="wk">${n}</div>`).join("");
+  const ult=new Date(ini.getFullYear(),ini.getMonth()+1,0).getDate();
+  for(let v=0;v<ini.getDay();v++)h+=`<div class="day fora"></div>`;
+  for(let i=0;i<ult;i++){
+    const d=new Date(ini.getFullYear(),ini.getMonth(),i+1);const k=iso(d);
+    const ps=pedidos.filter(p=>p.dia===k&&(!f||p.status===f)&&(!q||(p.codigo+" "+p.referencia).toLowerCase().includes(q))).sort((a,b)=>a.criadoEm-b.criadoEm);
+    h+=`<div class="day ${k===hojeIso?"hoje":""}"><div class="dh"><b>${i+1}</b><button data-novo="${k}" title="Adicionar neste dia">+</button></div><div class="list">`+
+      (ps.length?ps.map(p=>`<div class="p st-${slug(p.status)}" data-id="${esc(p.id)}"><div class="c">${esc(p.codigo)}</div><div class="r">Ref.: ${esc(p.referencia)} · Qtd.: ${esc(p.qtd)}</div><span class="chip">● ${esc(cap(p.status))}</span><div class="r">${esc(nome(p.criadoPor))}</div></div>`).join(""):`<div class="vazio">Sem pedidos</div>`)+`</div></div>`;
+  }
+  $("grid").innerHTML=h;
+}
+
+function abreNovo(dia){
+  $("fCod").value="";$("fRef").value="";$("fQtd").value=1;$("fObs").value="";
+  $("fDia").value=dia||iso(new Date());$("dlgNovo").showModal();$("fCod").focus();
+}
+
+function abreDet(id){
+  const p=pedidos.find(x=>x.id===id);if(!p)return;
+  const hist=(p.historico||[]).slice().reverse().map(x=>`<li>${fmt(x.em)} · <b>${esc(cap(x.status))}</b> · ${esc(nome(x.por))}</li>`).join("");
+  $("det").innerHTML=`<h3 style="margin:0">${esc(p.codigo)}</h3>
+  <div style="color:var(--mut)">Ref.: ${esc(p.referencia)} · Qtd.: ${esc(p.qtd)} · Para: ${parse(p.dia).toLocaleDateString("pt-BR")}</div>
+  <div style="margin-top:6px">Pedido por <b>${esc(nome(p.criadoPor))}</b> em ${fmt(p.criadoEm)}</div>
+  ${p.obs?`<div style="margin-top:6px">Obs.: ${esc(p.obs)}</div>`:""}
+  <label>Status ${gestor?"":"(Só o gestor altera)"}</label>
+  <select id="selSt" ${gestor?"":"disabled"}>${STATUS.map(s=>`<option value="${s}" ${s===p.status?"selected":""}>${cap(s)}</option>`).join("")}</select>
+  <label>Histórico</label><ul class="hist">${hist}</ul>
+  <div class="row">${gestor?'<button id="exclui" style="margin-right:auto;color:#c53030">Excluir pedido</button>':""}<button id="fecha">Fechar</button></div>`;
+  $("dlgDet").showModal();
+  $("fecha").onclick=()=>$("dlgDet").close();
+  const ex=$("exclui");let arma=false;
+  if(ex)ex.onclick=async()=>{
+    if(!arma){arma=true;ex.textContent="Clique de novo para confirmar";setTimeout(()=>{arma=false;ex.textContent="Excluir pedido"},4000);return}
+    try{await deleteDoc(doc(db,"pedidos",p.id));$("dlgDet").close()}catch(err){arma=false;ex.textContent="Não foi possível excluir: "+((err&&(err.message||err.code))||"tente de novo")}
+  };
+  $("selSt").onchange=async e=>{
+    const novo=e.target.value;
+    const historico=[...(p.historico||[]),{status:novo,por:meuId,em:Date.now()}];
+    try{await updateDoc(doc(db,"pedidos",p.id),{status:novo,historico});$("dlgDet").close()}catch(err){alert("Não foi possível salvar a alteração.")}
+  };
+}
+
+$("salvaNovo").onclick=async()=>{
+  const codigo=$("fCod").value.trim(),referencia=$("fRef").value.trim(),dia=$("fDia").value;
+  if(!codigo||!referencia||!dia){alert("Preencha código, referência e dia.");return}
+  const agora=Date.now();
+  try{
+    await addDoc(col,{codigo,referencia,qtd:Math.max(1,parseInt($("fQtd").value)||1),obs:$("fObs").value.trim(),dia,status:"pendente",criadoPor:meuId,criadoEm:agora,historico:[{status:"pendente",por:meuId,em:agora}]});
+    $("dlgNovo").close();
+    const d=parse(dia);ini=new Date(d.getFullYear(),d.getMonth(),1);render();
+  }catch(e){alert("Não foi possível salvar. Verifique se você tem permissão de edição.")}
+};
+$("cancNovo").onclick=()=>$("dlgNovo").close();
+$("novo").onclick=()=>abreNovo();
+$("grid").onclick=e=>{
+  const b=e.target.closest("[data-novo]");if(b){abreNovo(b.dataset.novo);return}
+  const c=e.target.closest("[data-id]");if(c)abreDet(c.dataset.id);
+};
+$("ant").onclick=()=>{ini=new Date(ini.getFullYear(),ini.getMonth()-1,1);render()};
+$("prox").onclick=()=>{ini=new Date(ini.getFullYear(),ini.getMonth()+1,1);render()};
+$("hoje").onclick=()=>{ini=new Date(new Date().getFullYear(),new Date().getMonth(),1);render()};
+$("leg").innerHTML=STATUS.map(s=>`<span class="chip st-${slug(s)}">● ${cap(s)}</span>`).join("");
+$("busca").oninput=render;$("fil").onchange=render;
+
+const aviso=t=>{$("login").hidden=true;$("grid").hidden=true;$("bar").hidden=true;$("msg").hidden=false;$("msg").textContent=t};
+function renderUsers(){
+  const pend=usuarios.filter(u=>!u.ativo).length;
+  $("btnUsers").textContent="Usuários"+(pend?` (${pend} pendente${pend>1?"s":""})`:"");
+  $("usersList").innerHTML=usuarios.slice().sort((a,b)=>(a.ativo-b.ativo)||String(a.nome).localeCompare(String(b.nome))).map(u=>{const eu=u.id===meuId?"disabled":"";
+    return `<div class="ur"><span><b>${esc(u.nome)}</b><br><small>${esc(u.email)}</small></span><select data-papel="${u.id}" ${eu}><option value="vendedor" ${u.papel==="vendedor"?"selected":""}>Vendedor</option><option value="gestor" ${u.papel==="gestor"?"selected":""}>Gestor</option></select><button data-ativo="${u.id}" ${eu}>${u.ativo?"Bloquear":"Aprovar"}</button></div>`}).join("");
+}
+if(!firebaseConfig.apiKey||firebaseConfig.apiKey.startsWith("COLE")){
+  aviso("Falta configurar o Firebase: cole os dados do seu projeto em firebaseConfig, no início do código.");
+}else{
+  const auth=getAuth(initializeApp(firebaseConfig));db=getFirestore();
+  const erroMsg=e=>({"auth/invalid-credential":"E-mail ou senha incorretos.","auth/email-already-in-use":"Este e-mail já tem cadastro.","auth/weak-password":"A senha precisa ter ao menos 6 caracteres.","auth/invalid-email":"E-mail inválido."}[e.code]||"Não foi possível concluir: "+(e.code||e.message));
+  let criando=false,iniciado=false;
+  $("lAlt").onclick=()=>{criando=!criando;$("lt").textContent=criando?"Criar conta":"Entrar";$("lOk").textContent=criando?"Cadastrar":"Entrar";$("lAlt").textContent=criando?"Já tenho conta":"Criar conta";$("lNome").hidden=$("lNomeL").hidden=!criando};
+  $("lOk").onclick=async()=>{
+    $("lErr").textContent="";
+    const e=$("lEmail").value.trim(),pw=$("lSenha").value,n=$("lNome").value.trim();
+    try{
+      if(criando){
+        if(!n){$("lErr").textContent="Informe seu nome.";return}
+        const c=await createUserWithEmailAndPassword(auth,e,pw);
+        await setDoc(doc(db,"usuarios",c.user.uid),{nome:n,email:e,papel:"vendedor",ativo:false,criadoEm:Date.now()});
+      }else await signInWithEmailAndPassword(auth,e,pw);
+    }catch(err){$("lErr").textContent=erroMsg(err)}
+  };
+  $("lSenha").onkeydown=e=>{if(e.key==="Enter")$("lOk").click()};
+  $("sair").onclick=()=>signOut(auth).then(()=>location.reload());
+  $("btnUsers").onclick=()=>$("dlgUsers").showModal();
+  $("fechaU").onclick=()=>$("dlgUsers").close();
+  $("usersList").onclick=e=>{const b=e.target.closest("[data-ativo]");if(!b)return;const u=usuarios.find(x=>x.id===b.dataset.ativo);if(u)updateDoc(doc(db,"usuarios",u.id),{ativo:!u.ativo})};
+  $("usersList").onchange=e=>{const t=e.target.closest("[data-papel]");if(t)updateDoc(doc(db,"usuarios",t.dataset.papel),{papel:t.value})};
+  function iniciar(){
+    if(iniciado)return;iniciado=true;
+    col=collection(db,"pedidos");
+    $("msg").hidden=true;$("grid").hidden=false;$("bar").hidden=false;
+    onSnapshot(col,sn=>{pedidos=sn.docs.map(d=>({id:d.id,...d.data()}));render()},()=>aviso("Sem permissão para ver os pedidos. Fale com o gestor."));
+    onSnapshot(collection(db,"usuarios"),sn=>{usuarios=sn.docs.map(d=>({id:d.id,...d.data()}));usuarios.forEach(u=>nomes[u.id]=u.nome);render();renderUsers()},()=>{});
+  }
+  onAuthStateChanged(auth,u=>{
+    if(!u){$("msg").hidden=true;$("login").hidden=false;$("sair").hidden=true;return}
+    $("login").hidden=true;$("sair").hidden=false;meuId=u.uid;
+    onSnapshot(doc(db,"usuarios",u.uid),sn=>{
+      const d=sn.data();
+      if(!d||!d.ativo){aviso("Seu cadastro está aguardando aprovação do gestor.");return}
+      gestor=d.papel==="gestor";
+      $("quem").textContent=d.nome+" · "+(gestor?"Gestor":"Vendedor");
+      $("btnUsers").hidden=!gestor;
+      iniciar();
+    },()=>aviso("Não foi possível carregar seu cadastro."));
+  });
+}
+</script>
+</body>
+</html>
